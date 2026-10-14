@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Storm: Inside Annie’s Mind — 3D Story Adventure</title>
+  <meta name="description" content="A 3D educational storybook adventure for Year 3 pupils exploring character feelings, clues, and inferences from Chapters 4 and 5 of Storm by Kevin Crossley-Holland.">
+  <meta property="og:title" content="Storm: Inside Annie’s Mind — 3D Story Adventure">
+  <meta property="og:description" content="A 3D educational storybook adventure for Year 3 pupils exploring character feelings, clues, and inferences from Chapters 4 and 5 of Storm.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Fredoka & Quicksand for child-friendly storybook typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0d091e;
+      font-family: 'Quicksand', -apple-system, sans-serif;
+      color: #ffffff;
+      touch-action: none;
+    }
+
+    h1, h2, h3, h4, .font-display {
+      font-family: 'Fredoka', cursive, sans-serif;
+    }
+
+    #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: block;
+    }
+
+    /* UI Overlay Layer */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* Top HUD */
+    .top-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: linear-gradient(180deg, rgba(13, 9, 30, 0.85) 0%, rgba(13, 9, 30, 0) 100%);
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    .badge-gold {
+      background: rgba(251, 191, 36, 0.25);
+      border-color: #fbbf24;
+      color: #fef08a;
+    }
+
+    .badge-crystal {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #bae6fd;
+    }
+
+    .hud-right-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .hud-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Quest / Mission Prompt Pill */
+    .mission-pill {
+      align-self: center;
+      margin-top: 4px;
+      padding: 6px 16px;
+      background: rgba(20, 15, 45, 0.85);
+      border: 2px solid #a855f7;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #e9d5ff;
+      box-shadow: 0 4px 16px rgba(168, 85, 247, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    /* Bottom Touch Controls */
+    .bottom-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 16px 20px 24px 20px;
+      width: 100%;
+    }
+
+    /* Virtual Joystick */
+    #joystick-zone {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(6px);
+      position: relative;
+      touch-action: none;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #joystick-knob {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #38bdf8, #0284c7);
+      border: 3px solid #e0f2fe;
+      position: absolute;
+      top: 38px;
+      left: 38px;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.6);
+      pointer-events: none;
+      transition: transform 0.05s linear;
+    }
+
+    /* Action / Interact Button */
+    #interact-btn {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fb7185, #e11d48);
+      border: 4px solid #ffe4e6;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(225, 29, 72, 0.5);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #interact-btn:active {
+      transform: scale(0.92);
+      box-shadow: 0 4px 12px rgba(225, 29, 72, 0.4);
+    }
+
+    #interact-btn .btn-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    #interact-btn .btn-label {
+      font-family: 'Fredoka', cursive;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Proximity Prompt Toast */
+    #proximity-toast {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 3px solid #facc15;
+      padding: 10px 20px;
+      border-radius: 20px;
+      color: #fef08a;
+      font-family: 'Fredoka', cursive;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    #proximity-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Modal Screens */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 6, 25, 0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, #1e153a, #130d29);
+      border: 4px solid #a855f7;
+      border-radius: 28px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(168, 85, 247, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    /* Title Screen Specifics */
+    .title-banner {
+      text-align: center;
+    }
+
+    .title-banner h1 {
+      font-size: 36px;
+      font-weight: 800;
+      background: linear-gradient(to right, #38bdf8, #f472b6, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+      margin-bottom: 4px;
+      text-shadow: 0 4px 20px rgba(244, 114, 182, 0.4);
+    }
+
+    .title-banner h2 {
+      font-size: 18px;
+      color: #fde047;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .title-desc {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 12px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-primary {
+      padding: 14px 24px;
+      background: linear-gradient(to right, #10b981, #059669);
+      border: 3px solid #6ee7b7;
+      border-radius: 20px;
+      color: #ffffff;
+      font-family: 'Fredoka', cursive;
+      font-size: 19px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.96);
+    }
+
+    .btn-secondary {
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      color: #f1f5f9;
+      font-family: 'Fredoka', cursive;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease;
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* Challenge Question Modal */
+    .station-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 12px;
+    }
+
+    .station-title {
+      font-size: 18px;
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    .station-progress {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.15);
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid #fbbf24;
+    }
+
+    .question-box {
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .question-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f472b6;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .question-text {
+      font-family: 'Fredoka', cursive;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: #ffffff;
+    }
+
+    .answers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .answer-btn {
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      border-radius: 18px;
+      color: #f8fafc;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+      line-height: 1.35;
+    }
+
+    .answer-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    .answer-btn:active {
+      transform: scale(0.98);
+    }
+
+    .answer-letter {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: #3b82f6;
+      color: #ffffff;
+      font-family: 'Fredoka', cursive;
+      font-weight: 700;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .answer-btn.correct {
+      background: rgba(16, 185, 129, 0.3) !important;
+      border-color: #10b981 !important;
+      color: #a7f3d0 !important;
+    }
+
+    .answer-btn.correct .answer-letter {
+      background: #10b981 !important;
+    }
+
+    .answer-btn.wrong {
+      background: rgba(239, 68, 68, 0.3) !important;
+      border-color: #ef4444 !important;
+      color: #fecaca !important;
+    }
+
+    .answer-btn.wrong .answer-letter {
+      background: #ef4444 !important;
+    }
+
+    /* Feedback Banner */
+    .feedback-box {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .feedback-box.correct {
+      display: block;
+      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid #10b981;
+      color: #6ee7b7;
+    }
+
+    .feedback-box.incorrect {
+      display: block;
+      background: rgba(245, 158, 11, 0.2);
+      border: 2px solid #f59e0b;
+      color: #fde68a;
+    }
+
+    .hint-box {
+      background: rgba(56, 189, 248, 0.15);
+      border: 2px dashed #38bdf8;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #bae6fd;
+      display: none;
+    }
+
+    .hint-box.show {
+      display: block;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Desktop Controls Legend */
+    .desktop-legend {
+      display: none;
+      font-size: 12px;
+      color: #94a3b8;
+      background: rgba(0,0,0,0.4);
+      padding: 4px 10px;
+      border-radius: 10px;
+    }
+
+    @media (min-width: 768px) {
+      .desktop-legend {
+        display: block;
+      }
+      .title-banner h1 {
+        font-size: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Three.js 3D WebGL Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- In-Game Heads-Up Display -->
+  <div id="ui-layer">
+    <!-- Top HUD Bar -->
+    <div class="top-hud">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div class="badge badge-gold">
+          <span>⭐ SCORE:</span>
+          <span id="hud-score">0</span>
+        </div>
+        <div class="badge badge-crystal">
+          <span>💎 CRYSTALS:</span>
+          <span id="hud-crystals">0/5</span>
+        </div>
+        <div class="badge">
+          <span>📖 Q:</span>
+          <span id="hud-qnum">0/20</span>
+        </div>
+      </div>
+
+      <div class="hud-right-buttons interactive">
+        <div class="desktop-legend">Move: WASD / Arrows | Interact: E / Space</div>
+        <button id="btn-sound" class="hud-btn" title="Toggle Sound">🔊</button>
+        <button id="btn-help" class="hud-btn" title="How To Play">❓</button>
+      </div>
+    </div>
+
+    <!-- Active Objective Banner -->
+    <div class="mission-pill" id="mission-pill">
+      <span>📍</span>
+      <span id="mission-text">Explore the cottage and find the glowing Storm Window!</span>
+    </div>
+
+    <!-- Proximity Toast Prompt -->
+    <div id="proximity-toast">
+      <span>✨</span>
+      <span id="toast-text">Press INTERACT to explore!</span>
+    </div>
+
+    <!-- Bottom Touch / Mobile Controls -->
+    <div class="bottom-controls">
+      <!-- Virtual Joystick -->
+      <div id="joystick-zone" class="interactive">
+        <div id="joystick-knob"></div>
+      </div>
+
+      <!-- Interact Button -->
+      <div id="interact-btn" class="interactive" title="Interact with Story Station">
+        <span class="btn-icon">💬</span>
+        <span class="btn-label">INTERACT</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TITLE & WELCOME MODAL -->
+  <div id="modal-title" class="modal-overlay active">
+    <div class="modal-card">
+      <div class="title-banner">
+        <h1>STORM</h1>
+        <h2>Inside Annie’s Mind</h2>
+        <div style="font-size: 13px; color: #a78bfa; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+          A Story Adventure — Chapters 4 & 5
+        </div>
+      </div>
+
+      <div class="title-desc">
+        Welcome, Year 3 Reader! Explore a stormy night at the countryside cottage. Follow Annie’s courageous journey to find Doctor Grant for Willa and the new baby.
+        <br><br>
+        🎯 <strong>Your 3 Missions:</strong>
+        <ul style="margin-left: 20px; margin-top: 6px; line-height: 1.6;">
+          <li>Explore Annie’s thoughts & feelings.</li>
+          <li>Find clues and make smart inferences.</li>
+          <li>Ask thoughtful questions about her courage.</li>
+        </ul>
+      </div>
+
+      <button id="btn-start-game" class="btn-primary">
+        <span>🚀 START ADVENTURE</span>
+      </button>
+      <button id="btn-open-rules" class="btn-secondary">
+        <span>📖 How to Play & Controls</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY / RULES MODAL -->
+  <div id="modal-rules" class="modal-overlay">
+    <div class="modal-card">
+      <div class="station-header">
+        <h3 class="station-title">How to Play</h3>
+        <span class="station-progress">Year 3 English</span>
+      </div>
+
+      <div style="font-size: 14px; line-height: 1.6; color: #e2e8f0;">
+        <p><strong>🎮 Controls:</strong></p>
+        <p>• <strong>Desktop:</strong> Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to walk. Press <strong>E</strong> or <strong>Spacebar</strong> to interact when near a glowing station.</p>
+        <p>• <strong>Mobile / Tablet:</strong> Drag the <strong>joystick</strong> at the bottom-left to walk. Tap the pink <strong>INTERACT</strong> button at the bottom-right.</p>
+        <br>
+        <p><strong>⭐ Scoring:</strong></p>
+        <p>• Correct on first attempt: <strong>100 points</strong>.</p>
+        <p>• Correct after a hint / retry: <strong>50 points</strong>.</p>
+        <p>• Complete all 5 story stations (20 questions total) to collect all 5 Memory Crystals!</p>
+      </div>
+
+      <button id="btn-close-rules" class="btn-primary">
+        <span>Back to Game</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- CHALLENGE QUESTION MODAL -->
+  <div id="modal-question" class="modal-overlay">
+    <div class="modal-card">
+      <div class="station-header">
+        <div>
+          <span id="modal-station-tag" style="font-size: 11px; font-weight: 700; color: #f472b6; text-transform: uppercase;">Station 1</span>
+          <h3 id="modal-station-title" class="station-title">The Storm Window</h3>
+        </div>
+        <span id="modal-q-counter" class="station-progress">Question 1/20</span>
+      </div>
+
+      <div class="question-box">
+        <div class="question-tag">
+          <span>💡</span>
+          <span id="modal-objective-label">Story Comprehension</span>
+        </div>
+        <div id="modal-question-text" class="question-text">
+          What problem does the family discover during the storm?
+        </div>
+      </div>
+
+      <div id="modal-answers-list" class="answers-list">
+        <!-- Generated dynamically -->
+      </div>
+
+      <div id="modal-hint-box" class="hint-box">
+        💡 <strong>Hint:</strong> <span id="modal-hint-text"></span>
+      </div>
+
+      <div id="modal-feedback-box" class="feedback-box">
+        <!-- Generated on answer -->
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-show-hint" class="btn-secondary">
+          <span>💡 Need a Hint?</span>
+        </button>
+        <button id="btn-next-question" class="btn-primary" style="display: none;">
+          <span>Continue ➔</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY / RESULTS MODAL -->
+  <div id="modal-results" class="modal-overlay">
+    <div class="modal-card" style="text-align: center;">
+      <div style="font-size: 54px;">🏆</div>
+      <h1 style="font-size: 32px; color: #facc15;" class="font-display">YOU DID IT!</h1>
+      <h3 id="res-title" style="color: #38bdf8; font-size: 22px;">Inference Expert</h3>
+
+      <div style="background: rgba(255,255,255,0.08); padding: 16px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); margin: 8px 0;">
+        <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 6px;">Final Adventure Score:</div>
+        <div id="res-score" style="font-size: 42px; font-weight: 800; color: #fbbf24; font-family: 'Fredoka';">2000</div>
+        <div style="display: flex; justify-content: space-around; margin-top: 10px; font-size: 14px;">
+          <div>Correct: <strong id="res-correct" style="color: #4ade80;">20/20</strong></div>
+          <div>Accuracy: <strong id="res-accuracy" style="color: #38bdf8;">100%</strong></div>
+          <div>Crystals: <strong id="res-crystals" style="color: #e879f9;">5/5</strong></div>
+        </div>
+      </div>
+
+      <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5;">
+        You explored Annie’s mind, uncovered story clues, and understood how true courage means taking action even when your heart beats fearfully!
+      </p>
+
+      <button id="btn-replay" class="btn-primary">
+        <span>🔄 Play Adventure Again</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME SCRIPT (THREE.JS 3D ENGINE, GAMEPLAY, SOUND, QUESTIONS) -->
+  <script>
+  (function() {
+    'use strict';
+
+    /* ==========================================================
+       1. WEB AUDIO SYNTHESIZER (100% Procedural, Zero 404s)
+       ========================================================== */
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioClass) audioCtx = new AudioClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(freq, type, duration, gainVal = 0.15) {
+      if (!soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playChime() {
+      if (!soundEnabled) return;
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((n, idx) => {
+        setTimeout(() => playTone(n, 'sine', 0.4, 0.12), idx * 70);
+      });
+    }
+
+    function playCorrect() {
+      if (!soundEnabled) return;
+      const notes = [440, 554.37, 659.25, 880];
+      notes.forEach((n, idx) => {
+        setTimeout(() => playTone(n, 'triangle', 0.45, 0.15), idx * 80);
+      });
+    }
+
+    function playWrong() {
+      if (!soundEnabled) return;
+      playTone(280, 'sawtooth', 0.3, 0.1);
+      setTimeout(() => playTone(220, 'sawtooth', 0.4, 0.1), 120);
+    }
+
+    function playCrystalPickup() {
+      if (!soundEnabled) return;
+      const notes = [784, 988, 1175, 1568];
+      notes.forEach((n, idx) => {
+        setTimeout(() => playTone(n, 'sine', 0.5, 0.18), idx * 60);
+      });
+    }
+
+    /* ==========================================================
+       2. 20 CURRICULUM QUESTIONS (CHAPTERS 4 & 5 OF STORM)
+       ========================================================== */
+    const QUESTIONS_DATA = [
+      // Station 1: The Cottage / Storm Window (Story Comprehension Q1-Q4)
+      {
+        stationId: 0,
+        stationName: "The Cottage: Storm Window",
+        objective: "Story Comprehension",
+        text: "What extreme weather arrives at the start of Chapter 4?",
+        options: [
+          { text: "A tremendous storm with howling wind", correct: true },
+          { text: "A gentle summer drizzle", correct: false },
+          { text: "A heavy winter blizzard of deep snow", correct: false }
+        ],
+        hint: "Think about what is violently battering against the cottage walls.",
+        feedbackCorrect: "Brilliant! Chapter 4 begins with a tremendous storm howling around the cottage.",
+        feedbackWrong: "Not quite. Look carefully: the text describes a fierce, tremendous storm."
+      },
+      {
+        stationId: 0,
+        stationName: "The Cottage: Storm Window",
+        objective: "Story Comprehension",
+        text: "What urgent family event is taking place during the storm?",
+        options: [
+          { text: "Willa’s baby is about to be born", correct: true },
+          { text: "The family is getting ready to move house", correct: false },
+          { text: "The farm animals have escaped into the woods", correct: false }
+        ],
+        hint: "Who needs Doctor Grant in the cottage?",
+        feedbackCorrect: "Spot on! Willa's baby is coming, so getting Doctor Grant is an urgent emergency.",
+        feedbackWrong: "Look again at Chapter 4: Willa's baby is about to be born!"
+      },
+      {
+        stationId: 0,
+        stationName: "The Cottage: Storm Window",
+        objective: "Story Comprehension",
+        text: "What serious problem does the family discover when they try to call for help?",
+        options: [
+          { text: "The telephone lines are down", correct: true },
+          { text: "The cottage clock has stopped ticking", correct: false },
+          { text: "All their lanterns have run out of oil", correct: false }
+        ],
+        hint: "How does the family attempt to communicate with the town?",
+        feedbackCorrect: "Well done! The telephone lines are broken, so no call can get through.",
+        feedbackWrong: "Remember: the storm knocked out the telephone lines!"
+      },
+      {
+        stationId: 0,
+        stationName: "The Cottage: Storm Window",
+        objective: "Story Comprehension",
+        text: "Why does Annie insist that SHE must be the one to go for Doctor Grant?",
+        options: [
+          { text: "The others must stay to care for Willa and cannot leave", correct: true },
+          { text: "She wants to go splash in puddles outside", correct: false },
+          { text: "She is the only person who owns a raincoat", correct: false }
+        ],
+        hint: "Why can't the rest of the family leave Willa alone in the cottage?",
+        feedbackCorrect: "Excellent! The others must care for Willa, so Annie bravely steps forward.",
+        feedbackWrong: "Think about the family: Willa needs constant care, so Annie must go."
+      },
+
+      // Station 2: The Family Room (Thoughts & Feelings Q5-Q8)
+      {
+        stationId: 1,
+        stationName: "The Family Room",
+        objective: "Thoughts & Feelings",
+        text: "Annie’s heart beats fearfully, yet she insists on going. Which description best fits her?",
+        options: [
+          { text: "Frightened but determined", correct: true },
+          { text: "Completely relaxed and indifferent", correct: false },
+          { text: "Angry because she wants to stay in bed", correct: false }
+        ],
+        hint: "Can someone feel scared on the inside and still act bravely?",
+        feedbackCorrect: "Superb thinking! A person can feel afraid and still be determined to help.",
+        feedbackWrong: "Notice her pounding heart (fear) and her insistence to go (determination)."
+      },
+      {
+        stationId: 1,
+        stationName: "The Family Room",
+        objective: "Thoughts & Feelings",
+        text: "Why might Annie feel uneasy as she listens to the wind battering the cottage?",
+        options: [
+          { text: "She knows the wild storm makes traveling outside dangerous", correct: true },
+          { text: "She is afraid her books will get dusty", correct: false },
+          { text: "She dislikes the sound of gentle raindrops", correct: false }
+        ],
+        hint: "How does the storm sound outside the bedroom window?",
+        feedbackCorrect: "Great reflection! The battering wind tells Annie how dangerous the outdoors is.",
+        feedbackWrong: "Consider the wild weather: it makes the journey to Waterslain very risky."
+      },
+      {
+        stationId: 1,
+        stationName: "The Family Room",
+        objective: "Thoughts & Feelings",
+        text: "How does Annie’s deep love for her family influence her courage?",
+        options: [
+          { text: "Her love for Willa and the baby gives her the strength to face the storm", correct: true },
+          { text: "It makes her hide under her blanket and ignore them", correct: false },
+          { text: "It makes her feel annoyed at being disturbed", correct: false }
+        ],
+        hint: "Why would a young girl volunteer to walk into a raging storm?",
+        feedbackCorrect: "Spot on! Caring about her family overpowers her personal fear.",
+        feedbackWrong: "Think about her motivation: she wants to protect Willa and the new baby."
+      },
+      {
+        stationId: 1,
+        stationName: "The Family Room",
+        objective: "Thoughts & Feelings",
+        text: "What do Annie’s decisions tell us about her character in Chapter 4?",
+        options: [
+          { text: "She is responsible, courageous, and selfless", correct: true },
+          { text: "She does not care about what happens to others", correct: false },
+          { text: "She prefers to let adults solve all problems alone", correct: false }
+        ],
+        hint: "Look at what Annie chooses to do instead of staying warm inside.",
+        feedbackCorrect: "Brilliant! Annie shows true selflessness and maturity.",
+        feedbackWrong: "Look closely at her willingness to take on the dangerous journey."
+      },
+
+      // Station 3: The Story-Clue Garden (Inference & Evidence Q9-Q12)
+      {
+        stationId: 2,
+        stationName: "The Story-Clue Garden",
+        objective: "Inference & Evidence",
+        text: "What is the difference between a STORY CLUE and an INFERENCE?",
+        options: [
+          { text: "A clue is in the text; an inference is what we work out using thinking", correct: true },
+          { text: "A clue is made up; an inference is a picture in the book", correct: false },
+          { text: "There is no difference between them at all", correct: false }
+        ],
+        hint: "Formula: STORY CLUE + THINKING = INFERENCE!",
+        feedbackCorrect: "Formula mastered! Clues come from words; inferences come from thoughtful reasoning.",
+        feedbackWrong: "Remember: A clue is stated in the book; an inference is what the reader works out."
+      },
+      {
+        stationId: 2,
+        stationName: "The Story-Clue Garden",
+        objective: "Inference & Evidence",
+        text: "Story clue: “Mother helps prepare Annie for the journey.” What can we infer?",
+        options: [
+          { text: "Mother is worried for Annie but knows the doctor is desperately needed", correct: true },
+          { text: "Mother wants Annie to play in the rain for fun", correct: false },
+          { text: "Mother thinks the storm is completely harmless", correct: false }
+        ],
+        hint: "Why would a mother carefully wrap her daughter in warm clothes?",
+        feedbackCorrect: "Accurate inference! Mother bundles Annie up out of love and necessity.",
+        feedbackWrong: "An inference uses evidence: Mother knows the urgency, so she prepares Annie."
+      },
+      {
+        stationId: 2,
+        stationName: "The Story-Clue Garden",
+        objective: "Inference & Evidence",
+        text: "Story clue: “Annie lies in bed and listens to the wind.” What can we infer about her thoughts?",
+        options: [
+          { text: "She is awake and alert to the danger of the weather outside", correct: true },
+          { text: "She is fast asleep having sweet dreams", correct: false },
+          { text: "She is excited to go on a summer picnic", correct: false }
+        ],
+        hint: "Does a person who lies awake listening to roaring wind feel soundly asleep?",
+        feedbackCorrect: "Spot on! Lying awake listening reveals her growing concern.",
+        feedbackWrong: "She is not asleep; she is lying awake paying close attention to the storm."
+      },
+      {
+        stationId: 2,
+        stationName: "The Story-Clue Garden",
+        objective: "Inference & Evidence",
+        text: "Which sentence from Chapter 5 is a DIRECT CLUE that Annie experiences fear?",
+        options: [
+          { text: "Her heart beat fearfully", correct: true },
+          { text: "The cottage stood in the countryside", correct: false },
+          { text: "The path was wet with muddy rain", correct: false }
+        ],
+        hint: "Which option explicitly mentions her heart beating?",
+        feedbackCorrect: "Exact text evidence! 'Her heart beat fearfully' directly describes her emotion.",
+        feedbackWrong: "Check the exact words from the book: 'Her heart beat fearfully'."
+      },
+
+      // Station 4: The Cottage Door (Asking & Answering Questions Q13-Q16)
+      {
+        stationId: 3,
+        stationName: "The Cottage Door",
+        objective: "Asking Questions",
+        text: "Which question would best help us understand Annie’s feelings more deeply?",
+        options: [
+          { text: "“How did you find the courage to step outside into the storm?”", correct: true },
+          { text: "“How many buttons are sewn on your coat?”", correct: false },
+          { text: "“What time did you eat lunch yesterday?”", correct: false }
+        ],
+        hint: "Which question asks about what is happening inside her heart and mind?",
+        feedbackCorrect: "Super question! Asking about her courage explores her inner feelings.",
+        feedbackWrong: "Choose the question that investigates feelings and thoughts, not button counts."
+      },
+      {
+        stationId: 3,
+        stationName: "The Cottage Door",
+        objective: "Asking Questions",
+        text: "If you asked Annie: “Why did you insist on going?”, what answer matches Chapter 4?",
+        options: [
+          { text: "“Because Willa needs Doctor Grant, and the others cannot leave her alone.”", correct: true },
+          { text: "“Because I wanted to go for a midnight stroll.”", correct: false },
+          { text: "“Because I was searching for my lost toy.”", correct: false }
+        ],
+        hint: "Remember the family emergency with Willa.",
+        feedbackCorrect: "Exactly! That represents Annie's genuine motivation in the story.",
+        feedbackWrong: "Remember the urgent problem: Willa needs a doctor and the others must stay."
+      },
+      {
+        stationId: 3,
+        stationName: "The Cottage Door",
+        objective: "Asking Questions",
+        text: "Why do thoughtful readers ask questions about characters as they read?",
+        options: [
+          { text: "To understand characters’ motives, hidden feelings, and choices", correct: true },
+          { text: "Because the author forgot to finish writing the book", correct: false },
+          { text: "Just to count how many words are on the page", correct: false }
+        ],
+        hint: "How does asking 'why' make you a stronger reader?",
+        feedbackCorrect: "Reading superpower! Asking questions helps you connect deeply with the story.",
+        feedbackWrong: "Asking questions is a key comprehension skill to uncover deeper meaning."
+      },
+      {
+        stationId: 3,
+        stationName: "The Cottage Door",
+        objective: "Asking Questions",
+        text: "Which question would best help us explore the relationship between Annie and Willa?",
+        options: [
+          { text: "“Why is helping Willa and the baby so important to you?”", correct: true },
+          { text: "“What colour is the roof of the cottage?”", correct: false },
+          { text: "“How tall are the trees along the fence?”", correct: false }
+        ],
+        hint: "Look for the question about family care and emotions.",
+        feedbackCorrect: "Brilliant question! It reveals the bond of love in the family.",
+        feedbackWrong: "Choose the question that explores personal care and family bonds."
+      },
+
+      // Station 5: The Stormy Path & Rider (Final Story Challenge Q17-Q20)
+      {
+        stationId: 4,
+        stationName: "The Stormy Path & Rider",
+        objective: "Final Challenge",
+        text: "In Chapter 5, who suddenly arrives outside the cottage during the storm?",
+        options: [
+          { text: "A stranger riding on horseback", correct: true },
+          { text: "Doctor Grant driving a motor car", correct: false },
+          { text: "A lost school teacher with an umbrella", correct: false }
+        ],
+        hint: "Who comes riding through the gale in Chapter 5?",
+        feedbackCorrect: "Correct! A mysterious stranger arrives on a horse.",
+        feedbackWrong: "Check Chapter 5: a stranger on horseback appears in the storm."
+      },
+      {
+        stationId: 4,
+        stationName: "The Stormy Path & Rider",
+        objective: "Final Challenge",
+        text: "What offer does the stranger make to Annie?",
+        options: [
+          { text: "To take Annie with him on his horse to Waterslain", correct: true },
+          { text: "To buy the cottage from her parents", correct: false },
+          { text: "To fix the broken telephone wires immediately", correct: false }
+        ],
+        hint: "How does the rider offer to help Annie reach Doctor Grant?",
+        feedbackCorrect: "Well done! He offers to carry her on his horse to Waterslain.",
+        feedbackWrong: "The stranger offers to take Annie to Waterslain to get the doctor."
+      },
+      {
+        stationId: 4,
+        stationName: "The Stormy Path & Rider",
+        objective: "Final Challenge",
+        text: "Which story clue best proves Annie made a brave choice when meeting the stranger?",
+        options: [
+          { text: "Despite her fear and pounding heart, she insisted on going with him", correct: true },
+          { text: "She ran back into her room and hid under the bed", correct: false },
+          { text: "She told the stranger to leave without helping", correct: false }
+        ],
+        hint: "True bravery means taking action even when you feel scared.",
+        feedbackCorrect: "Heroic choice! She faced the storm and the stranger to save Willa.",
+        feedbackWrong: "Look at Chapter 5: despite her fear, Annie insisted on going."
+      },
+      {
+        stationId: 4,
+        stationName: "The Stormy Path & Rider",
+        objective: "Final Challenge",
+        text: "What is the most important lesson we learn from Annie’s actions in Chapters 4–5?",
+        options: [
+          { text: "Love and determination give people strength to act even when afraid", correct: true },
+          { text: "Children should never try to help their families", correct: false },
+          { text: "Storms are never scary if you wear bright boots", correct: false }
+        ],
+        hint: "What does Annie's journey teach us about courage and love?",
+        feedbackCorrect: "Magnificent! You have mastered the learning objectives of Storm!",
+        feedbackWrong: "Think about Annie's journey: courage is taking action despite great fear."
+      }
+    ];
+
+    /* ==========================================================
+       3. GAME STATE & PROGRESS TRACKER
+       ========================================================== */
+    const state = {
+      score: 0,
+      crystals: 0,
+      currentStation: 0,
+      currentQuestionIdx: 0,
+      attemptsOnCurrentQ: 0,
+      totalAnswered: 0,
+      totalCorrectFirstTry: 0,
+      completedStations: [false, false, false, false, false],
+      inDialogue: false
+    };
+
+    /* ==========================================================
+       4. THREE.JS 3D SCENE SETUP
+       ========================================================== */
+    const canvas = document.getElementById('game-canvas');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e0924);
+    scene.fog = new THREE.FogExp2(0x130b2c, 0.028);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 150);
+    camera.position.set(0, 7, 12);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x4c3f78, 1.2);
+    scene.add(ambientLight);
+
+    const moonLight = new THREE.DirectionalLight(0x7dd3fc, 1.4);
+    moonLight.position.set(15, 25, 10);
+    moonLight.castShadow = true;
+    moonLight.shadow.mapSize.width = 1024;
+    moonLight.shadow.mapSize.height = 1024;
+    moonLight.shadow.camera.near = 0.5;
+    moonLight.shadow.camera.far = 60;
+    moonLight.shadow.camera.left = -20;
+    moonLight.shadow.camera.right = 20;
+    moonLight.shadow.camera.top = 20;
+    moonLight.shadow.camera.bottom = -20;
+    scene.add(moonLight);
+
+    // Warm cottage window lights
+    const cottageLight = new THREE.PointLight(0xfbbf24, 2.5, 18);
+    cottageLight.position.set(-6, 3, 2);
+    scene.add(cottageLight);
+
+    const lanternLight = new THREE.PointLight(0xf59e0b, 1.5, 10);
+    lanternLight.position.set(-2.5, 2.8, 3.5);
+    scene.add(lanternLight);
+
+    // Ground Terrain
+    const groundGeo = new THREE.PlaneGeometry(90, 90, 32, 32);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x1e3a2f,
+      roughness: 0.85,
+      metalness: 0.1
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Winding Muddy Storybook Path
+    const pathCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-4, 0.02, 3),   // Station 1: Cottage
+      new THREE.Vector3(-1, 0.02, -1),  // Station 2: Family Room
+      new THREE.Vector3(5, 0.02, 1),    // Station 3: Garden
+      new THREE.Vector3(10, 0.02, 4),   // Station 4: Cottage Door
+      new THREE.Vector3(16, 0.02, 10)   // Station 5: Stormy Path & Rider
+    ]);
+    const pathGeo = new THREE.TubeGeometry(pathCurve, 64, 1.8, 8, false);
+    const pathMat = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 });
+    const pathMesh = new THREE.Mesh(pathGeo, pathMat);
+    pathMesh.scale.set(1, 0.05, 1);
+    pathMesh.receiveShadow = true;
+    scene.add(pathMesh);
+
+    /* ==========================================================
+       5. 3D MODELS (PROCEDURAL STORYBOOK ARCHITECTURE)
+       ========================================================== */
+    // A) Cosy Countryside Cottage
+    const cottageGroup = new THREE.Group();
+    cottageGroup.position.set(-7, 0, -2);
+
+    // Stone Base & Timber Walls
+    const wallGeo = new THREE.BoxGeometry(7, 4.5, 6);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
+    const walls = new THREE.Mesh(wallGeo, wallMat);
+    walls.position.y = 2.25;
+    walls.castShadow = true;
+    walls.receiveShadow = true;
+    cottageGroup.add(walls);
+
+    // Thatched / Slate Gable Roof
+    const roofGeo = new THREE.ConeGeometry(5.8, 3.2, 4);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = 5.6;
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    cottageGroup.add(roof);
+
+    // Stone Chimney
+    const chimneyGeo = new THREE.BoxGeometry(1, 4, 1);
+    const chimneyMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 });
+    const chimney = new THREE.Mesh(chimneyGeo, chimneyMat);
+    chimney.position.set(2, 5.5, -1);
+    chimney.castShadow = true;
+    cottageGroup.add(chimney);
+
+    // Glowing Yellow Windows
+    const winGeo = new THREE.PlaneGeometry(1.2, 1.4);
+    const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    const win1 = new THREE.Mesh(winGeo, winMat);
+    win1.position.set(0, 2.2, 3.02);
+    cottageGroup.add(win1);
+
+    const win2 = new THREE.Mesh(winGeo, winMat);
+    win2.position.set(-2, 2.2, 3.02);
+    cottageGroup.add(win2);
+
+    // Wooden Front Door
+    const doorGeo = new THREE.BoxGeometry(1.2, 2.4, 0.2);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+    const door = new THREE.Mesh(doorGeo, doorMat);
+    door.position.set(2, 1.2, 3.02);
+    cottageGroup.add(door);
+
+    scene.add(cottageGroup);
+
+    // B) Animated Rain Particles
+    const rainCount = 1200;
+    const rainGeo = new THREE.BufferGeometry();
+    const rainPos = new Float32Array(rainCount * 3);
+    for (let i = 0; i < rainCount; i++) {
+      rainPos[i * 3] = (Math.random() - 0.5) * 60;
+      rainPos[i * 3 + 1] = Math.random() * 25;
+      rainPos[i * 3 + 2] = (Math.random() - 0.5) * 60;
+    }
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+    const rainMat = new THREE.PointsMaterial({
+      color: 0x93c5fd,
+      size: 0.15,
+      transparent: true,
+      opacity: 0.65
+    });
+    const rainParticles = new THREE.Points(rainGeo, rainMat);
+    scene.add(rainParticles);
+
+    // C) Trees and Storybook Vegetation
+    const treesGroup = new THREE.Group();
+    function createTree(x, z, scale = 1) {
+      const tree = new THREE.Group();
+      const trunkGeo = new THREE.CylinderGeometry(0.25 * scale, 0.35 * scale, 2.5 * scale, 6);
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21 });
+      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      trunk.position.y = 1.25 * scale;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const foliageGeo = new THREE.ConeGeometry(1.8 * scale, 3.5 * scale, 6);
+      const foliageMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.8 });
+      const foliage = new THREE.Mesh(foliageGeo, foliageMat);
+      foliage.position.y = 3.6 * scale;
+      foliage.castShadow = true;
+      tree.add(foliage);
+
+      tree.position.set(x, 0, z);
+      return tree;
+    }
+
+    // Scatter trees around boundaries
+    const treeCoords = [
+      [-14, 5], [-16, -5], [-12, -12], [-5, -14], [2, -12],
+      [12, -6], [18, -2], [22, 6], [20, 14], [12, 16],
+      [-2, 12], [-8, 14], [6, 12], [8, -8]
+    ];
+    treeCoords.forEach(([tx, tz]) => {
+      treesGroup.add(createTree(tx, tz, 0.8 + Math.random() * 0.4));
+    });
+    scene.add(treesGroup);
+
+    // D) Annie (Player 3D Character with Stylized Red Coat)
+    const player = new THREE.Group();
+    player.position.set(-4, 0, 4);
+
+    // Coat & Body (Red coat)
+    const coatGeo = new THREE.CylinderGeometry(0.4, 0.7, 1.2, 8);
+    const coatMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.5 });
+    const coat = new THREE.Mesh(coatGeo, coatMat);
+    coat.position.y = 0.8;
+    coat.castShadow = true;
+    player.add(coat);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xfde68a, roughness: 0.4 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 1.6;
+    head.castShadow = true;
+    player.add(head);
+
+    // Red Hood / Hat
+    const hoodGeo = new THREE.SphereGeometry(0.4, 12, 12);
+    const hoodMat = new THREE.MeshStandardMaterial({ color: 0xbe123c, roughness: 0.5 });
+    const hood = new THREE.Mesh(hoodGeo, hoodMat);
+    hood.position.set(0, 1.65, -0.05);
+    player.add(hood);
+
+    // Orbiting Thought Bubble with Heart Icon
+    const thoughtBubbleGeo = new THREE.SphereGeometry(0.2, 8, 8);
+    const thoughtBubbleMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, emissiveIntensity: 0.6 });
+    const thoughtBubble = new THREE.Mesh(thoughtBubbleGeo, thoughtBubbleMat);
+    thoughtBubble.position.set(0.6, 2.2, 0);
+    player.add(thoughtBubble);
+
+    scene.add(player);
+
+    // E) Stranger on Horseback (Waiting at Station 5)
+    const horseRiderGroup = new THREE.Group();
+    horseRiderGroup.position.set(16, 0, 10);
+    horseRiderGroup.rotation.y = -Math.PI / 4;
+
+    // Horse Body
+    const horseBodyGeo = new THREE.BoxGeometry(1.2, 1.2, 2.4);
+    const horseMat = new THREE.MeshStandardMaterial({ color: 0x3f271d, roughness: 0.8 });
+    const horseBody = new THREE.Mesh(horseBodyGeo, horseMat);
+    horseBody.position.y = 1.5;
+    horseBody.castShadow = true;
+    horseRiderGroup.add(horseBody);
+
+    // Horse Legs
+    for (let lx of [-0.4, 0.4]) {
+      for (let lz of [-0.8, 0.8]) {
+        const legGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.4);
+        const leg = new THREE.Mesh(legGeo, horseMat);
+        leg.position.set(lx, 0.7, lz);
+        leg.castShadow = true;
+        horseRiderGroup.add(leg);
+      }
+    }
+
+    // Horse Neck & Head
+    const horseHeadGeo = new THREE.BoxGeometry(0.5, 0.8, 1.1);
+    const horseHead = new THREE.Mesh(horseHeadGeo, horseMat);
+    horseHead.position.set(0, 2.4, 1.2);
+    horseHead.rotation.x = -Math.PI / 5;
+    horseHead.castShadow = true;
+    horseRiderGroup.add(horseHead);
+
+    // Stranger Rider (Dark travelling cloak)
+    const riderGeo = new THREE.ConeGeometry(0.5, 1.4, 8);
+    const riderMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+    const rider = new THREE.Mesh(riderGeo, riderMat);
+    rider.position.set(0, 2.6, 0);
+    rider.castShadow = true;
+    horseRiderGroup.add(rider);
+
+    scene.add(horseRiderGroup);
+
+    /* ==========================================================
+       6. 5 INTERACTIVE CHALLENGE STATIONS & MEMORY CRYSTALS
+       ========================================================== */
+    const STATIONS = [
+      { id: 0, name: "The Storm Window", pos: new THREE.Vector3(-4, 0, 3), range: 3.2, crystalObj: null, beaconLight: null },
+      { id: 1, name: "The Family Room", pos: new THREE.Vector3(-1, 0, -1), range: 3.2, crystalObj: null, beaconLight: null },
+      { id: 2, name: "The Story-Clue Garden", pos: new THREE.Vector3(5, 0, 1), range: 3.2, crystalObj: null, beaconLight: null },
+      { id: 3, name: "The Cottage Door", pos: new THREE.Vector3(10, 0, 4), range: 3.2, crystalObj: null, beaconLight: null },
+      { id: 4, name: "The Stormy Path & Rider", pos: new THREE.Vector3(15, 0, 9), range: 3.5, crystalObj: null, beaconLight: null }
+    ];
+
+    const crystalMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
+      metalness: 0.8
+    });
+
+    STATIONS.forEach((st, idx) => {
+      const stationGroup = new THREE.Group();
+      stationGroup.position.copy(st.pos);
+
+      // Stone Pedestal
+      const pedGeo = new THREE.CylinderGeometry(0.7, 0.9, 0.4, 8);
+      const pedMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 });
+      const ped = new THREE.Mesh(pedGeo, pedMat);
+      ped.position.y = 0.2;
+      ped.receiveShadow = true;
+      stationGroup.add(ped);
+
+      // Floating Octahedron Memory Crystal
+      const crysGeo = new THREE.OctahedronGeometry(0.45);
+      const crys = new THREE.Mesh(crysGeo, crystalMat);
+      crys.position.y = 1.6;
+      crys.castShadow = true;
+      stationGroup.add(crys);
+      st.crystalObj = crys;
+
+      // Glow Beacon
+      const light = new THREE.PointLight(0x38bdf8, 1.2, 5);
+      light.position.y = 1.6;
+      stationGroup.add(light);
+      st.beaconLight = light;
+
+      scene.add(stationGroup);
+    });
+
+    /* ==========================================================
+       7. JOYSTICK & PLAYER MOVEMENT CONTROLS
+       ========================================================== */
+    const keys = { forward: false, backward: false, left: false, right: false };
+    const joystick = { active: false, x: 0, y: 0 };
+
+    // Keyboard events
+    window.addEventListener('keydown', (e) => {
+      if (state.inDialogue) return;
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.forward = true;
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.backward = true;
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = true;
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = true;
+      if (e.key === 'e' || e.key === 'E' || e.key === ' ') {
+        checkAndTriggerInteraction();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.forward = false;
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.backward = false;
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = false;
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = false;
+    });
+
+    // Touch Joystick Implementation
+    const joystickZone = document.getElementById('joystick-zone');
+    const joystickKnob = document.getElementById('joystick-knob');
+    let touchId = null;
+    const maxRadius = 40;
+
+    function handleJoystickStart(e) {
+      if (touchId !== null) return;
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      touchId = touch.identifier !== undefined ? touch.identifier : 'mouse';
+      joystick.active = true;
+      handleJoystickMove(e);
+    }
+
+    function handleJoystickMove(e) {
+      if (!joystick.active) return;
+      let targetTouch = null;
+      if (e.changedTouches) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === touchId) {
+            targetTouch = e.changedTouches[i];
+            break;
+          }
+        }
+      } else {
+        targetTouch = e;
+      }
+      if (!targetTouch) return;
+
+      const rect = joystickZone.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      let dx = targetTouch.clientX - centerX;
+      let dy = targetTouch.clientY - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > maxRadius) {
+        dx = (dx / dist) * maxRadius;
+        dy = (dy / dist) * maxRadius;
+      }
+
+      joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joystick.x = dx / maxRadius;
+      joystick.y = dy / maxRadius;
+    }
+
+    function handleJoystickEnd(e) {
+      if (!joystick.active) return;
+      if (e.changedTouches) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === touchId) {
+            resetJoystick();
+            break;
+          }
+        }
+      } else {
+        resetJoystick();
+      }
+    }
+
+    function resetJoystick() {
+      touchId = null;
+      joystick.active = false;
+      joystick.x = 0;
+      joystick.y = 0;
+      joystickKnob.style.transform = `translate(0px, 0px)`;
+    }
+
+    joystickZone.addEventListener('touchstart', handleJoystickStart, { passive: false });
+    window.addEventListener('touchmove', handleJoystickMove, { passive: false });
+    window.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    window.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
+
+    // Interact button tap
+    const interactBtn = document.getElementById('interact-btn');
+    interactBtn.addEventListener('click', checkAndTriggerInteraction);
+    interactBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      checkAndTriggerInteraction();
+    });
+
+    /* ==========================================================
+       8. INTERACTION LOGIC & QUESTION SYSTEM
+       ========================================================== */
+    const toast = document.getElementById('proximity-toast');
+    const toastText = document.getElementById('toast-text');
+
+    function getNearbyStation() {
+      for (let st of STATIONS) {
+        const d = player.position.distanceTo(st.pos);
+        if (d <= st.range) return st;
+      }
+      return null;
+    }
+
+    function checkAndTriggerInteraction() {
+      if (state.inDialogue) return;
+      initAudio();
+      const st = getNearbyStation();
+      if (st) {
+        openStationQuestions(st.id);
+      } else {
+        // Subtle hint toast
+        showToast("Walk closer to a glowing story station!");
+      }
+    }
+
+    function showToast(msg) {
+      toastText.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function openStationQuestions(stationId) {
+      state.inDialogue = true;
+      state.currentStation = stationId;
+
+      // Find first uncompleted question for this station
+      const startIndex = stationId * 4;
+      let qIdx = startIndex;
+      while (qIdx < startIndex + 4 && qIdx < state.currentQuestionIdx) {
+        qIdx++;
+      }
+      state.currentQuestionIdx = qIdx;
+      loadQuestion(qIdx);
+      document.getElementById('modal-question').classList.add('active');
+      playChime();
+    }
+
+    function loadQuestion(idx) {
+      const q = QUESTIONS_DATA[idx];
+      state.attemptsOnCurrentQ = 0;
+
+      document.getElementById('modal-station-tag').textContent = `Station ${q.stationId + 1}`;
+      document.getElementById('modal-station-title').textContent = q.stationName;
+      document.getElementById('modal-q-counter').textContent = `Question ${idx + 1}/20`;
+      document.getElementById('modal-objective-label').textContent = q.objective;
+      document.getElementById('modal-question-text').textContent = q.text;
+
+      // Reset feedback and hint
+      const feedbackBox = document.getElementById('modal-feedback-box');
+      feedbackBox.className = 'feedback-box';
+      feedbackBox.textContent = '';
+
+      const hintBox = document.getElementById('modal-hint-box');
+      hintBox.classList.remove('show');
+      document.getElementById('modal-hint-text').textContent = q.hint;
+
+      document.getElementById('btn-show-hint').style.display = 'block';
+      document.getElementById('btn-next-question').style.display = 'none';
+
+      // Render shuffled options
+      const answersList = document.getElementById('modal-answers-list');
+      answersList.innerHTML = '';
+
+      // Shuffle options copy
+      const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+      const letters = ['A', 'B', 'C'];
+
+      shuffled.forEach((opt, optIndex) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.innerHTML = `<span class="answer-letter">${letters[optIndex]}</span><span>${opt.text}</span>`;
+        btn.onclick = () => handleAnswerSelect(opt, btn, q);
+        answersList.appendChild(btn);
+      });
+    }
+
+    function handleAnswerSelect(selectedOpt, btnElem, q) {
+      state.attemptsOnCurrentQ++;
+      const feedbackBox = document.getElementById('modal-feedback-box');
+      const allButtons = document.querySelectorAll('.answer-btn');
+
+      if (selectedOpt.correct) {
+        playCorrect();
+        btnElem.classList.add('correct');
+        allButtons.forEach(b => b.style.pointerEvents = 'none');
+
+        // Score calculation: 100 on first try, 50 on retry
+        let points = 100;
+        if (state.attemptsOnCurrentQ > 1) {
+          points = 50;
+        } else {
+          state.totalCorrectFirstTry++;
+        }
+        state.score += points;
+        state.totalAnswered++;
+        updateHUD();
+
+        feedbackBox.className = 'feedback-box correct';
+        feedbackBox.innerHTML = `⭐ <strong>+${points} Points!</strong> ${q.feedbackCorrect}`;
+
+        document.getElementById('btn-show-hint').style.display = 'none';
+        document.getElementById('btn-next-question').style.display = 'block';
+      } else {
+        playWrong();
+        btnElem.classList.add('wrong');
+        feedbackBox.className = 'feedback-box incorrect';
+        feedbackBox.innerHTML = `⚠️ ${q.feedbackWrong} <em>(Try again or check the hint!)</em>`;
+      }
+    }
+
+    // Hint button click
+    document.getElementById('btn-show-hint').onclick = () => {
+      initAudio();
+      document.getElementById('modal-hint-box').classList.add('show');
+      playTone(587.33, 'sine', 0.25, 0.1);
+    };
+
+    // Continue / Next question button click
+    document.getElementById('btn-next-question').onclick = () => {
+      initAudio();
+      const currentStationId = state.currentStation;
+      const stationEndIndex = (currentStationId + 1) * 4 - 1;
+
+      if (state.currentQuestionIdx < stationEndIndex && state.currentQuestionIdx + 1 < QUESTIONS_DATA.length) {
+        state.currentQuestionIdx++;
+        loadQuestion(state.currentQuestionIdx);
+      } else {
+        // Station Finished!
+        finishStation(currentStationId);
+      }
+    };
+
+    function finishStation(stationId) {
+      document.getElementById('modal-question').classList.remove('active');
+      state.inDialogue = false;
+
+      if (!state.completedStations[stationId]) {
+        state.completedStations[stationId] = true;
+        state.crystals++;
+        updateHUD();
+        playCrystalPickup();
+
+        // Visually reward the 3D world
+        const st = STATIONS[stationId];
+        if (st.crystalObj) {
+          st.crystalObj.material.color.setHex(0xfacc15);
+          st.crystalObj.material.emissive.setHex(0xeab308);
+          st.crystalObj.scale.set(1.4, 1.4, 1.4);
+        }
+        if (st.beaconLight) {
+          st.beaconLight.color.setHex(0xfacc15);
+          st.beaconLight.intensity = 2.5;
+        }
+
+        showToast(`💎 Memory Crystal #${state.crystals} Collected! Station Complete!`);
+      }
+
+      // Check if all 20 questions completed
+      if (state.totalAnswered >= 20 || state.completedStations.every(Boolean)) {
+        setTimeout(showFinalVictory, 1000);
+      } else {
+        // Guide to next station
+        const nextId = stationId + 1;
+        if (nextId < STATIONS.length) {
+          document.getElementById('mission-text').textContent = `Next stop: Follow the path to ${STATIONS[nextId].name}!`;
+        }
+      }
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-score').textContent = state.score;
+      document.getElementById('hud-crystals').textContent = `${state.crystals}/5`;
+      document.getElementById('hud-qnum').textContent = `${state.totalAnswered}/20`;
+    }
+
+    function showFinalVictory() {
+      state.inDialogue = true;
+      document.getElementById('res-score').textContent = state.score;
+      document.getElementById('res-correct').textContent = `${state.totalAnswered}/20`;
+      document.getElementById('res-crystals').textContent = `${state.crystals}/5`;
+
+      const accuracy = Math.round((state.totalCorrectFirstTry / 20) * 100);
+      document.getElementById('res-accuracy').textContent = `${accuracy}%`;
+
+      let title = "Story Explorer";
+      if (state.score >= 1800) title = "Storm Champion 🌟";
+      else if (state.score >= 1500) title = "Inference Expert 💡";
+      else if (state.score >= 1200) title = "Thoughtful Reader 📖";
+
+      document.getElementById('res-title').textContent = title;
+      document.getElementById('modal-results').classList.add('active');
+      playChime();
+    }
+
+    // Replay button
+    document.getElementById('btn-replay').onclick = () => {
+      location.reload();
+    };
+
+    /* ==========================================================
+       9. UI BUTTON LISTENERS (START, HOW TO PLAY, SOUND)
+       ========================================================== */
+    document.getElementById('btn-start-game').onclick = () => {
+      initAudio();
+      document.getElementById('modal-title').classList.remove('active');
+      playChime();
+    };
+
+    document.getElementById('btn-open-rules').onclick = () => {
+      initAudio();
+      document.getElementById('modal-rules').classList.add('active');
+    };
+
+    document.getElementById('btn-close-rules').onclick = () => {
+      initAudio();
+      document.getElementById('modal-rules').classList.remove('active');
+    };
+
+    document.getElementById('btn-help').onclick = () => {
+      initAudio();
+      document.getElementById('modal-rules').classList.add('active');
+    };
+
+    const soundBtn = document.getElementById('btn-sound');
+    soundBtn.onclick = () => {
+      soundEnabled = !soundEnabled;
+      soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+      if (soundEnabled) initAudio();
+    };
+
+    /* ==========================================================
+       10. MAIN ANIMATION & GAME LOOP
+       ========================================================== */
+    const clock = new THREE.Clock();
+    let walkAnimTime = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // 1) Animate Rain Particles
+      const positions = rainParticles.geometry.attributes.position.array;
+      for (let i = 1; i < rainCount * 3; i += 3) {
+        positions[i] -= 22 * delta; // fall downward
+        positions[i - 1] += 4 * delta; // slight wind slant
+        if (positions[i] < 0) {
+          positions[i] = 25;
+          positions[i - 1] = (Math.random() - 0.5) * 60;
+        }
+      }
+      rainParticles.geometry.attributes.position.needsUpdate = true;
+
+      // 2) Animate Floating Memory Crystals
+      STATIONS.forEach((st, idx) => {
+        if (st.crystalObj) {
+          st.crystalObj.rotation.y += 1.8 * delta;
+          st.crystalObj.position.y = 1.6 + Math.sin(elapsed * 2.5 + idx) * 0.15;
+        }
+      });
+
+      // 3) Animate Annie's orbiting thought bubble
+      thoughtBubble.position.x = Math.sin(elapsed * 3) * 0.6;
+      thoughtBubble.position.z = Math.cos(elapsed * 3) * 0.6;
+
+      // 4) Player Movement & Collision Handling
+      let moveX = 0;
+      let moveZ = 0;
+
+      if (!state.inDialogue) {
+        if (keys.forward) moveZ -= 1;
+        if (keys.backward) moveZ += 1;
+        if (keys.left) moveX -= 1;
+        if (keys.right) moveX += 1;
+
+        if (joystick.active) {
+          moveX += joystick.x;
+          moveZ += joystick.y;
+        }
+      }
+
+      const inputLen = Math.sqrt(moveX * moveX + moveZ * moveZ);
+      if (inputLen > 0.08) {
+        const speed = 6.2;
+        const normX = (moveX / inputLen);
+        const normZ = (moveZ / inputLen);
+
+        player.position.x += normX * speed * delta;
+        player.position.z += normZ * speed * delta;
+
+        // Smooth face rotation towards walking direction
+        const targetAngle = Math.atan2(normX, normZ);
+        player.rotation.y = THREE.MathUtils.lerp(player.rotation.y, targetAngle, 0.18);
+
+        // Cute bobbing walk cycle
+        walkAnimTime += delta * 12;
+        player.position.y = Math.abs(Math.sin(walkAnimTime)) * 0.18;
+      } else {
+        player.position.y = THREE.MathUtils.lerp(player.position.y, 0, 0.2);
+      }
+
+      // Simple World Boundary & Cottage Wall Collision
+      player.position.x = Math.max(-25, Math.min(25, player.position.x));
+      player.position.z = Math.max(-25, Math.min(25, player.position.z));
+
+      // Cottage wall collision box
+      if (player.position.x > -11 && player.position.x < -3 &&
+          player.position.z > -6 && player.position.z < 1.5) {
+        player.position.z = 1.5;
+      }
+
+      // 5) Camera Following Annie with smooth damping
+      const camTargetPos = new THREE.Vector3(
+        player.position.x,
+        player.position.y + 6.5,
+        player.position.z + 10.5
+      );
+      camera.position.lerp(camTargetPos, 0.08);
+      camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+
+      // 6) Proximity Check for Stations
+      const nearbyStation = getNearbyStation();
+      if (nearbyStation && !state.inDialogue) {
+        toastText.textContent = `Near ${nearbyStation.name}! Tap INTERACT (or press E)`;
+        toast.classList.add('show');
+      } else if (!state.inDialogue) {
+        toast.classList.remove('show');
+      }
+
+      // 7) Render Scene
+      renderer.render(scene, camera);
+    }
+
+    // Window Resize Handling
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start Animation Loop
+    animate();
+
+  })();
+  </script>
+</body>
+</html>
